@@ -1,6 +1,6 @@
 CC = gcc
 LIBS = -lm
-PROGS = iscale midi2freq
+PROGS = breakdur iscale midi2freq
 
 all: ${PROGS}
 
