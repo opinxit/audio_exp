@@ -1,6 +1,6 @@
 CC = gcc
 LIBS = -lm
-PROGS = breakdur expbrk expad iscale midi2freq
+PROGS = breakdur expbrk expad iscale midi2freq tforkraw
 
 all: ${PROGS}
 
@@ -21,3 +21,6 @@ iscale: iscale.c
 
 midi2freq: midi2freq.c
 	${CC} ${LIBS} midi2freq.c -o midi2freq
+
+tforkraw: tforkraw.c
+	${CC} ${LIBS} tforkraw.c -o tforkraw
