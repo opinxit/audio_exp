@@ -1,6 +1,14 @@
+.DS_Store
+
 breakdur
 expbrk
 expad
 iscale
 midi2freq
+sf2float
 tforkraw
+
+portsf
+include
+lib
+

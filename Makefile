@@ -1,11 +1,18 @@
+
+INCLUDES 	= -I./include
+LIBS 		= -L./lib -lportsf -lm
+PROGS = breakdur expbrk expad iscale midi2freq sf2float tforkraw
+PORTSF=./lib/libportsf.a
 CC = gcc
-LIBS = -lm
-PROGS = breakdur expbrk expad iscale midi2freq tforkraw
 
 all: ${PROGS}
 
+$(PORTSF): 
+	cd portsf; make; make install
+
 clean: 
-	rm -f ${PROGS} 
+	rm -f ${PROGS}
+	rm -f *.o
 
 breakdur: breakdur.c
 	${CC} ${LIBS} breakdur.c -o breakdur
@@ -22,5 +29,11 @@ iscale: iscale.c
 midi2freq: midi2freq.c
 	${CC} ${LIBS} midi2freq.c -o midi2freq
 
+sf2float: sf2float.c $(PORTSF)
+	$(CC) -o sf2float sf2float.c $(INCLUDES) $(LIBS)
+
 tforkraw: tforkraw.c
 	${CC} ${LIBS} tforkraw.c -o tforkraw
+
+veryclean:	clean
+	cd portsf; make veryclean
