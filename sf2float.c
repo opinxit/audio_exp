@@ -28,6 +28,37 @@
 #include <portsf.h>
 #include <math.h>
 
+int check_sampletype(psf_stype type)
+{
+	int accept = 1;
+
+	printf("sample type: ");
+
+	switch(type) {
+		case(PSF_SAMP_8):
+			printf("8 bit\n");
+			accept = 0;
+			break;
+		case(PSF_SAMP_16):
+			printf("16 bit\n");
+			break;
+		case(PSF_SAMP_24):
+			printf("24 bit\n");
+			break;
+		case(PSF_SAMP_32):
+			printf("32bit (integer)\n");
+			break;
+		case(PSF_SAMP_IEEE_FLOAT):
+			printf("32bit floating point\n");
+			break;
+		default:
+			printf("unknown\n");
+			accept = 0;
+	}
+
+	return accept;
+}
+
 int main(int argc, char* argv[])
 {
 	PSF_PROPS props;
@@ -80,6 +111,14 @@ int main(int argc, char* argv[])
 	}
 	props.format = outformat;
 
+	printf("Sample rate = %d\n", props.srate);
+	printf("number of channels = %d\n", props.chans);
+
+	if (!check_sampletype(props.samptype)) {
+		printf("file has unsupported sample type\n");
+		return 1;
+	}
+
 	ofd = psf_sndCreate(argv[2], &props, 0, 0, PSF_CREATE_RDWR);
 	if (ofd < 0) {
 		printf("Error: unable to create outfile %s\n", argv[2]);
@@ -109,6 +148,8 @@ int main(int argc, char* argv[])
 	framesread = psf_sndReadFloatFrames(ifd, frame, 1);
 	totalread = 0; // count sample frames as they are copied
 	while (framesread == 1) {
+		long j;
+
 		totalread++;
 		if (psf_sndWriteFloatFrames(ofd, frame, 1) != 1) {
 			printf("Error writing to outfile\n");
@@ -116,7 +157,11 @@ int main(int argc, char* argv[])
 			break;
 		}
 
-		//  <----  do any processing here! ------>
+		// do stuff here!
+		// for (j = 0; j < props.chans; j++) {
+		// 	printf("sample val %lu:%ld: %9.6f\n", totalread, j, frame[j]);
+		// }
+
 
 		framesread = psf_sndReadFloatFrames(ifd, frame, 1);
 	}
@@ -129,14 +174,14 @@ int main(int argc, char* argv[])
 	}
 		
 	// report PEAK values to user
-	if (psf_sndReadPeaks(ofd,peaks,NULL) > 0) {
+	if (psf_sndReadPeaks(ofd, peaks, NULL) > 0) {
 		long i;
 		double peaktime;
 		printf("PEAK information:\n");
 
 		for (i = 0; i < props.chans; i++) {
 			peaktime = (double) peaks[i].pos / (double) props.srate;
-			printf("CH %ld:\t%.4f at %.4f secs\n", i + 1, peaks[i].val, peaktime);
+			printf("CH %ld:\t%.4f (%3.2fdB) at %.4f secs\n", i + 1, peaks[i].val, 20 * log10(peaks[i].val), peaktime);
 		}
 	}
 
