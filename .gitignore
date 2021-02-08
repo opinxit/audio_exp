@@ -6,6 +6,7 @@ expad
 iscale
 midi2freq
 sf2float
+sfgain
 tforkraw
 
 portsf
