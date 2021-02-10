@@ -46,16 +46,16 @@ int main(int argc, char* argv[])
 	printf("SFGAIN: change amplitude of soundfile\n");
 
 	if (argc < 4) {
-		printf("insufficient arguments.\n"
-			"usage:\n\t"
+		printf("Insufficient arguments.\n"
+			"Usage:\n\t"
 			"sfgain infile outfile ampfac\n"
 			"\twhere ampfac > 0.0\n");
 		return 1;
 	}
 
-	// be good, and startup portsf
+	// startup portsf
 	if (psf_init()) {
-		printf("unable to start portsf\n");
+		printf("Unable to start portsf\n");
 		return 1;
 	}
 	
@@ -71,13 +71,14 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	// have a resource; use goto hereafter on hitting any error
+	// have resource; use goto hereafter on hitting any error
 	
-	// check file extension of outfile name, so use correct output file format
+	// check file extension of outfile name; use correct output file format
 	outformat = psf_getFormatExt(argv[2]);
+
 	if (outformat == PSF_FMT_UNKNOWN) {
 		printf("outfile name %s has unknown format.\n"
-			"Use any of .wav, .aiff, .aif, .afc, .aifc\n",argv[2]);
+			"Use any of .wav, .aiff, .aif, .afc, .aifc\n", argv[2]);
 		error++;
 		goto exit;
 	}
@@ -92,7 +93,7 @@ int main(int argc, char* argv[])
 		goto exit;
 	}
 
-	// and allocate space for PEAK info
+	// allocate space for PEAK info
 	peaks = (PSF_CHPEAK*) malloc(props.chans * sizeof(PSF_CHPEAK));
 	if (peaks == NULL) {
 		puts("No memory!\n");

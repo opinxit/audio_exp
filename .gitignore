@@ -7,6 +7,7 @@ iscale
 midi2freq
 sf2float
 sfgain
+sfnorm
 tforkraw
 
 portsf

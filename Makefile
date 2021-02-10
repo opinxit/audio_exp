@@ -1,7 +1,7 @@
 
 INCLUDES 	= -I./include
 LIBS 		= -L./lib -lportsf -lm
-PROGS = breakdur expbrk expad iscale midi2freq sf2float tforkraw
+PROGS = breakdur expbrk expad iscale midi2freq sf2float sfgain sfnorm tforkraw
 PORTSF=./lib/libportsf.a
 CC = gcc
 
@@ -34,6 +34,9 @@ sf2float: sf2float.c $(PORTSF)
 
 sfgain: sfgain.c $(PORTSF)
 	$(CC) -o sfgain sfgain.c $(INCLUDES) $(LIBS)
+
+sfnorm: sfnorm.c $(PORTSF)
+	$(CC) -o sfnorm sfnorm.c $(INCLUDES) $(LIBS)
 
 tforkraw: tforkraw.c
 	${CC} ${LIBS} tforkraw.c -o tforkraw
