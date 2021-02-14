@@ -21,7 +21,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-//sfnorm.c :  normalize soundfile to user-defined dB level
+// sfnorm.c :  normalize soundfile to user-defined dB level
 #include <stdio.h>
 #include <stdlib.h>
 #include <portsf.h>
@@ -84,8 +84,10 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
+	// convert dbval to float
 	ampfac = (float) pow(10.0, dbval/20.0);
 
+	// open input file
 	ifd = psf_sndOpen(argv[1], &props, 0);	
 
 	if (ifd < 0) {
@@ -113,6 +115,7 @@ int main(int argc, char* argv[])
 	if (psf_sndReadPeaks(ifd, peaks, NULL) > 0) {
 		long i;
 		printf("Using PEAK data.\n");
+
 		for (i = 0; i < props.chans; i++) {
 			if (peaks[i].val > inpeak) inpeak = peaks[i].val;	
 		}			
@@ -124,8 +127,7 @@ int main(int argc, char* argv[])
 
 			blocksize = framesread * props.chans;
 			thispeak = maxsamp(frame, blocksize);
-			if (thispeak > inpeak)
-				inpeak = thispeak;				
+			if (thispeak > inpeak) inpeak = thispeak;				
 			framesread = psf_sndReadFloatFrames(ifd, frame, nframes);
 		}
 
