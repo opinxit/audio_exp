@@ -9,6 +9,7 @@ midi2freq
 sf2float
 sfgain
 sfnorm
+sfpan
 tforkraw
 
 portsf

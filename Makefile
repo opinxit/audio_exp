@@ -38,6 +38,9 @@ sfgain: sfgain.c $(PORTSF)
 sfnorm: sfnorm.c $(PORTSF)
 	$(CC) -o sfnorm sfnorm.c $(INCLUDES) $(LIBS)
 
+sfpan: sfpan.c $(PORTSF)
+	$(CC) -o sfpan sfpan.c $(INCLUDES) $(LIBS)
+
 tforkraw: tforkraw.c
 	${CC} ${LIBS} tforkraw.c -o tforkraw
 
