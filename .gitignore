@@ -13,6 +13,8 @@ sfpan
 tforkraw
 
 portsf
-include
+include/portsf.h
+include/wave.h
+include/gtable.h
 lib
 

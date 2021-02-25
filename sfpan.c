@@ -277,12 +277,12 @@ int main(int argc, char* argv[])
 	exit:	 	
 	if (infile >= 0) {
 		if (psf_sndClose(infile))
-			printf("%s: Warning: error closing infile %s\n",argv[ARG_PROGNAME],argv[ARG_INFILE]);
+			printf("%s: Warning: error closing infile %s\n", argv[ARG_PROGNAME], argv[ARG_INFILE]);
 	}
 
 	if (outfile >= 0) {
 		if (psf_sndClose(outfile))
-			printf("%s: Warning: error closing outfile %s\n",argv[ARG_PROGNAME],argv[ARG_OUTFILE]);
+			printf("%s: Warning: error closing outfile %s\n", argv[ARG_PROGNAME], argv[ARG_OUTFILE]);
 	}
 
   if (outframe) free(outframe);
