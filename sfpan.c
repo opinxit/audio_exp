@@ -38,6 +38,26 @@ typedef struct panpos {
   double right;
 } PANPOS;
 
+PANPOS constpower(double position);
+
+PANPOS constpower(double position)
+{
+	PANPOS pos;
+
+	const double piovr2 = 4.0 * atan(1.0) * 0.5;
+	const double root2ovr2 = sqrt(2.0) * 0.5;
+	// const double thispos = position * piovr2;
+	const double angle = position * piovr2 * 0.5;
+	// the last 0.5 is to scale for two channels across pi/4 each.
+	const double sinangle = sin(angle);
+	const double cosangle = cos(angle);
+
+	pos.left = root2ovr2 * (cosangle - sinangle);
+	pos.right = root2ovr2 * (cosangle + sinangle);
+
+	return pos;
+}
+
 PANPOS simplepan(double position);
 
 PANPOS simplepan(double position)
@@ -237,7 +257,7 @@ int main(int argc, char* argv[])
     int i, out_i;
     for (i = 0,  out_i = 0; i < framesread; i++) {
 			stereopos = val_at_brktime(points, size, sampletime);
-			pos = simplepan(stereopos);
+			pos = constpower(stereopos);
 
       outframe[out_i++] = (float) (inframe[i] * pos.left);
       outframe[out_i++] = (float) (inframe[i] * pos.right);

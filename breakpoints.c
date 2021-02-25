@@ -114,7 +114,7 @@ double val_at_brktime(const BREAKPOINT *points, unsigned long npoints, double ti
 
 	// get value from this span using linear interpolation
 	frac = (time - left.time) / width;
-	val  = left.value + ((right.value - left.value) * frac);
+	val = left.value + ((right.value - left.value) * frac);
 
 	return val;
 }
