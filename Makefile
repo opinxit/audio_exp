@@ -17,6 +17,9 @@ clean:
 breakdur: breakdur.c
 	${CC} ${LIBS} breakdur.c -o breakdur
 
+envx: envx.c $(PORTSF)
+	$(CC) -o envx envx.c $(INCLUDES) $(LIBS)
+
 expbrk: expbrk.c
 	${CC} ${LIBS} expbrk.c -o expbrk
 
