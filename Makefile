@@ -35,6 +35,9 @@ midi2freq: midi2freq.c
 sf2float: sf2float.c $(PORTSF)
 	$(CC) -o sf2float sf2float.c $(INCLUDES) $(LIBS)
 
+sfenv: sfenv.c  breakpoints.c $(PORTSF)
+	$(CC) -o sfenv sfenv.c breakpoints.c $(INCLUDES) $(LIBS)
+
 sfgain: sfgain.c $(PORTSF)
 	$(CC) -o sfgain sfgain.c $(INCLUDES) $(LIBS)
 

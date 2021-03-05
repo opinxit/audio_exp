@@ -8,6 +8,7 @@ expad
 iscale
 midi2freq
 sf2float
+sfenv
 sfgain
 sfnorm
 sfpan
