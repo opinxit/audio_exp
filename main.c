@@ -29,7 +29,7 @@
 #include <math.h>
 #include <portsf.h>
 
-/* set size of multi-channel frame-buffer */
+// set size of multi-channel frame-buffer
 #define NFRAMES (1024)
 
 // TODO define program argument list, excluding flags
@@ -38,12 +38,13 @@ enum {ARG_PROGNAME, ARG_INFILE, ARG_OUTFILE, ARG_NARGS};
 int main(int argc, char* argv[])
 {
 	// STAGE 1
-	PSF_PROPS inprops, outprops;									
-	long framesread;	
-	/* init all dynamic resources to default states */
+	PSF_PROPS inprops, outprops;
+	long framesread;
+
+	// init all dynamic resources to default states
 	int infile = -1, outfile = -1;
 	int error = 0;
-	PSF_CHPEAK* peaks = NULL;	
+	PSF_CHPEAK* peaks = NULL;
 	psf_format outformat = PSF_FMT_UNKNOWN;
 	unsigned long nframes = NFRAMES;
 	float* inframe = NULL;
@@ -51,7 +52,7 @@ int main(int argc, char* argv[])
 	// TODO: define an output frame buffer if channel width different
 	
 	// STAGE 2
-	printf("MAIN: generic process\n");						
+	printf("MAIN: generic process\n");
 
 	// process any optional flags: remove this block if none used
 	if (argc > 1) {
@@ -99,7 +100,7 @@ int main(int argc, char* argv[])
 
 	// TODO: verify infile format for this application
 
-	// allocate space for  sample frame buffer ...
+	// allocate space for sample frame buffer ...
 	inframe = (float*) malloc(nframes * inprops.chans * sizeof(float));
 	if (inframe == NULL) {
 		puts("No memory!\n");
@@ -111,7 +112,7 @@ int main(int argc, char* argv[])
 	outformat = psf_getFormatExt(argv[ARG_OUTFILE]);
 	if (outformat == PSF_FMT_UNKNOWN) {
 		printf("outfile name %s has unknown format.\n"
-			"Use any of .wav, .aiff, .aif, .afc, .aifc\n",argv[ARG_OUTFILE]);
+			"Use any of .wav, .aiff, .aif, .afc, .aifc\n", argv[ARG_OUTFILE]);
 		error++;
 		goto exit;
 	}
@@ -161,7 +162,7 @@ int main(int argc, char* argv[])
 		printf("Error reading infile. Outfile is incomplete.\n");
 		error++;
 	} else {
-		printf("Done: %d errors\n",error);
+		printf("Done: %d errors\n", error);
 	}
 		
 	// STAGE 6
@@ -173,7 +174,7 @@ int main(int argc, char* argv[])
 
 		for (i = 0; i < inprops.chans; i++) {
 			peaktime = (double) peaks[i].pos / (double) inprops.srate;
-			printf("CH %ld:\t%.4f at %.4f secs\n", i+1, peaks[i].val, peaktime);
+			printf("CH %ld:\t%.4f at %.4f secs\n", i + 1, peaks[i].val, peaktime);
 		}
 	}
 
@@ -182,13 +183,15 @@ int main(int argc, char* argv[])
 
 	exit:	 	
 	if (infile >= 0) {
-		if (psf_sndClose(infile))
-			printf("%s: Warning: error closing infile %s\n",argv[ARG_PROGNAME],argv[ARG_INFILE]);
+		if (psf_sndClose(infile)) {
+			printf("%s: Warning: error closing infile %s\n", argv[ARG_PROGNAME], argv[ARG_INFILE]);
+		}
 	}
 
 	if (outfile >= 0) {
-		if (psf_sndClose(outfile))
-			printf("%s: Warning: error closing outfile %s\n",argv[ARG_PROGNAME],argv[ARG_OUTFILE]);
+		if (psf_sndClose(outfile)) {
+			printf("%s: Warning: error closing outfile %s\n", argv[ARG_PROGNAME], argv[ARG_OUTFILE]);
+		}
 	}
 
 	if (inframe) free(inframe);
