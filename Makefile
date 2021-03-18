@@ -32,6 +32,9 @@ iscale: iscale.c
 midi2freq: midi2freq.c
 	${CC} ${LIBS} midi2freq.c -o midi2freq
 
+siggen: siggen.c wave.c breakpoints.c $(PORTSF)
+	$(CC)  -o siggen siggen.c wave.c breakpoints.c $(INCLUDES) $(LIBS)
+
 sf2float: sf2float.c $(PORTSF)
 	$(CC) -o sf2float sf2float.c $(INCLUDES) $(LIBS)
 
