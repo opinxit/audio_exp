@@ -280,7 +280,7 @@ int main(int argc, char* argv[])
 
     for (i = 0; i < outprops.chans; i++) {
       peaktime = (double) peaks[i].pos / (double) outprops.srate;
-      printf("CH %d:\t%.4f at %.4f secs\n", i + 1, peaks[i].val, peaktime);
+      printf("CH %lu:\t%.4f at %.4f secs\n", i + 1, peaks[i].val, peaktime);
     }
 	}	
 
