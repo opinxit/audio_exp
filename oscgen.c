@@ -36,9 +36,68 @@
 #define NFRAMES (1024)
 
 // TODO define program argument list, excluding flags
-enum {ARG_PROGNAME, ARG_OUTFILE, ARG_TYPE, ARG_DUR, ARG_SRATE, ARG_AMP, ARG_FREQ, ARG_NARGS};
+enum {
+	ARG_PROGNAME,
+	ARG_OUTFILE,
+	ARG_DUR,
+	ARG_SRATE,
+	ARG_NCHANS,
+	ARG_AMP,
+	ARG_FREQ,
+	ARG_TYPE,
+	ARG_NOSCS,
+	ARG_NARGS
+};
 
-enum { WAVE_SQUARE = 0, WAVE_TRIANGLE, WAVE_SAWUP, WAVE_SAWDOWN, WAVE_NTYPES};
+enum {
+	WAVE_SQUARE,
+	WAVE_TRIANGLE,
+	WAVE_SAWUP,
+	WAVE_SAWDOWN,
+	WAVE_PULSE
+};
+
+enum {SAW_DOWN,SAW_UP};
+
+int isnum(const char* num,double* val);
+
+OSCIL* new_oscilp(unsigned long srate, double phase);
+
+int isnum(const char* num, double* val)
+{
+	char *stopchar;
+	long len;
+	double x;
+
+	if (num==NULL || val == NULL) return 0;
+
+	len = strlen(num);
+
+	if (len == 0) return 0;
+
+	x = strtod(num, &stopchar);
+
+	if(*stopchar != '\0') return 0;
+
+	*val = x;
+
+	return 1;
+}
+
+OSCIL* new_oscilp(unsigned long srate, double phase)
+{
+	OSCIL* p_osc;
+
+  p_osc = (OSCIL*) malloc(sizeof(OSCIL));
+  if (p_osc == NULL) return NULL;
+
+  p_osc->twopiovrsr = TWOPI / (double) srate;
+  p_osc->curfreq = 0.0;
+  p_osc->curphase = TWOPI * phase;
+  p_osc->incr = 0.0;
+
+  return p_osc;
+}
 
 int main(int argc, char* argv[])
 {
@@ -52,33 +111,69 @@ int main(int argc, char* argv[])
 	long nframes = NFRAMES;
 	float* outframe = NULL;
 	double amp, freq, dur;
-	unsigned long outframes, nbufs, i;
+	unsigned long outframes, nbufs, noscs, i;
 	long remainder;
-	int wavetype;
-	OSCIL **oscs = NULL; // array of OSCIL pointers
-  double *oscamps = NULL, *oscfreqs = NULL; // for oscbank amp, freq data
-  unsigned long noscs; // from argv[ARG_NOSCS] using atoi()
-	tickfunc tick;
+	int samptype = PSF_SAMP_16;
+	OSCIL** oscs = NULL; // array of OSCIL pointers
+	// for oscbank amp, freq data
+  double *oscamps = NULL;
+	double *oscfreqs = NULL; 
+	double phase = 0.0;
+	double ampfac, freqfac, ampadjust;
+
 	FILE* fpfreq = NULL;
-	FILE* fpamp = NULL;
 	BRKSTREAM* freqstream = NULL;
 	BRKSTREAM* ampstream = NULL;
-	unsigned long brkfreqSize = 0, brkampSize = 0;
-	double minval, maxval;
-  double ampfac, freqfac, ampadjust;
-
+	unsigned long brkfreqSize = 0;
+	double freq_minval = 0.0, freq_maxval = 0.0;
+	FILE* fpamp = NULL;
+	unsigned long brkampSize = 0;
+	double amp_minval = 0.0, amp_maxval = 0.0;
+	clock_t starttime, endtime;
+	int wavetype;
+	oscs = NULL;
+	
 	printf("SIGGEN: generate simple waveforms\n");
+
+	if (argc > 1) {
+		char flag;
+		while(argv[1][0] == '-') {
+			flag = argv[1][1];
+			switch(flag) {
+			// TODO: handle any flag arguments here
+			case('\0'):
+				printf("Error: missing flag name\n");
+				return 1;
+			case('s'):
+				if (argv[1][2] =='\0') {
+					printf("Error: -s flag requires parameter\n");
+					return 1;
+				}
+				samptype = atoi(&(argv[1][2]));
+				if (samptype <= PSF_SAMP_UNKNOWN || samptype > PSF_SAMP_IEEE_FLOAT) {
+					printf("Error: -s value out of range\n");
+					return 1;
+				}
+				break;
+			default:
+				break;
+			}
+			argc--;
+			argv++;
+		}
+	}
 
   // STAGE 2
 	// check rest of commandline
 	if (argc < ARG_NARGS) {
 		printf("insufficient arguments.\n"
-			"usage: siggen outfile wavetype dur srate amp freq\n"
+			"usage: oscgen [-sN] outfile dur srate nchans amp freq wavetype noscs\n"
 			"where wavetype =:\n"
 			"                0 = square\n"
 			"                1 = triangle\n"
 			"                2 = saw up\n"
 			"                3 = saw down\n"
+			"                4 = pulse\n"
 			"dur   = duration of outfile (seconds)\n"
 			"srate = required sample rate of outfile\n"
 			"amp   = amplitude value or breakpoint file (0 < amp <= 1.0)\n"
@@ -92,27 +187,6 @@ int main(int argc, char* argv[])
 	// STAGE 4
 	// TODO: any other argument processing and setup of variables, 		 
   // output buffer, etc., before creating outfile
-
-	wavetype = atoi(argv[ARG_TYPE]);
-	if (wavetype < WAVE_SINE || wavetype > WAVE_NTYPES) {
-		printf("Error: bad value for wave type\n");
-		return 1;
-	}
-
-	switch(wavetype) {
-    case(WAVE_SQUARE):
-      tick = sinetick;
-      break;
-    case(WAVE_TRIANGLE):
-      tick = tritick;
-      break;
-    case(WAVE_SAWUP):
-      tick = sawutick;
-      break;
-    case(WAVE_SAWDOWN):
-      tick = sawdtick;
-      break;		
-	}
 	
 	// define outfile format
 	outprops.srate = atoi(argv[ARG_SRATE]);
@@ -121,7 +195,12 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	outprops.chans = 1;
+	outprops.chans = atoi(argv[ARG_NCHANS]);
+	if(outprops.chans <= 0){
+		printf("error: nchans must be positive\n");
+		return 1;
+	}
+
 	outprops.samptype = (psf_stype) PSF_SAMP_16;
 	outprops.chformat = STDWAVE;
 
@@ -131,141 +210,35 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-  // create amp freq arrays
-  oscamps = (double*) malloc(noscs * sizeof(double));
-
-  if (oscamps == NULL) {
-    puts("no memory!\n");
-    error++;
-    goto exit;
-  }
-
-  oscfreqs = (double*) malloc(noscs * sizeof(double));
- 
-  if (oscfreqs == NULL) {
-    puts("no memory!\n");
-    error++;
-    goto exit;
-  }
-
-  oscs = (OSCILL**) malloc(noscs * sizeof(OSCIL *));
-  if (oscs == NULL) {
-    puts("no memory!\n");
-    error++;
-    goto exit;
-  }
-
-  // create each OSCIL
-  for (i = 0; i < noscs; i++) {
-    oscs[i] = new_oscil(outprops.srate);
-    if (oscs[i] == NULL) {
-      puts("no memory for oscillators\n");
-      error++
-      goto exit;
-    }
-  }
-
-  // fill arrays for triangle wave
-  ampfac = 1.0
-  freqfac = 1.0
-  ampadjust = 0.0;
-  for (i = 0; i < noscs; i++) {
-    ampfac = 1.0 / (freqfac * freqfac);
-    oscamps[i] = ampfac;
-    oscfreqs[i] = freqfac;
-    freqfac += 2.0; // odd harmonics only
-    ampadjust += ampfac;
-  }
-  
-  // rescale amp so they add to 1.0
-  for (i = 0; i < noscs; i++) {
-    oscamps[i] /= ampadjust;
-  }
-
 	outframes = (unsigned long) (dur * outprops.srate + 0.5);
-	nbufs = outframes / nframes;	
+	nbufs = outframes / nframes;	 
 	remainder = outframes - nbufs * nframes;
-	if (remainder) nbufs++;
 
-	// open breakpoint files, or set constants
-	fpamp = fopen(argv[ARG_AMP], "r");
-	if (fpamp == NULL) {
-		amp = atof(argv[ARG_AMP]);
-		if (amp <= 0.0 || amp > 1.0) {
-			printf("Error: amplitude value out of range: 0.0 < amp <= 1.0\n");
-			error++;
-			goto exit;
-		}
-	} else {
-		ampstream = bps_newstream(fpamp, outprops.srate, &brkampSize);
+	if (remainder > 0) nbufs++;
 
-		if (ampstream == NULL) {
-			printf("Error reading amplitude breakpoint file %s\n", argv[ARG_AMP]);
-			error++;
-			goto exit;
-		}
+	noscs = atoi(argv[ARG_NOSCS]);
 
-		if (bps_getminmax(ampstream, &minval, &maxval)) {
-			printf("Error reading range of breakpoint file %s\n", argv[ARG_AMP]);
-			error++;
-			goto exit;
-		}
-
-		if (minval < 0.0 || minval > 1.0 || maxval < 0.0 || maxval > 1.0) {
-			printf("Error: amplitude values out of range in file %s: 0.0 < amp <= 1.0\n", argv[ARG_AMP]);
-			error++;
-			goto exit;
-		}
+	if (noscs < 1) {
+		printf("Error: noscs must be positive\n");
+		return 1;
 	}
 
-	fpfreq = fopen(argv[ARG_FREQ], "r");
-	if (fpfreq== NULL) {
-		freq = atof(argv[ARG_FREQ]);
-		if (freq <= 0.0) {
-			printf("Error: frequency must be positive\n");
-			error++;
-			goto exit;
-		}
-	} else {
-		freqstream = bps_newstream(fpfreq, outprops.srate, &brkfreqSize);
+	wavetype = atoi(argv[ARG_TYPE]);
 
-		if (freqstream == NULL) {
-			printf("Error reading freq breakpoint file %s\n", argv[ARG_FREQ]);
-			error++;
-			goto exit;
-    }
-
-		if (bps_getminmax(freqstream, &minval, &maxval)) {
-			printf("Error reading range of breakpoint file %s\n", argv[ARG_FREQ]);
-			error++;
-			goto exit;
-		}
-
-		if (minval <= 0.0 ) {		 
-      // maxval = don't care
-			printf("Error in file %s:  frequency values must be positive\n", argv[ARG_AMP]);
-			error++;
-			goto exit;
-		}
+	if (wavetype < WAVE_SQUARE || wavetype > WAVE_PULSE) {
+		printf("Error: wavetype value out of range\n");
+		return 1;
 	}
-	
-	osc =  new_oscil(outprops.srate);
-	if (osc == NULL) {
-		puts("no memory for oscillator\n");
-		error++;
-		goto exit;
-	}
-	
+
 	//  always startup portsf
 	if (psf_init()) {
 		printf("unable to start portsf\n");
-		error++;
-		goto exit;
+		return 1;
 	}
-																							
-	// allocate space for sample frame buffer
+
+	// allocate space for  sample frame buffer ...
 	outframe = (float*) malloc(nframes * outprops.chans * sizeof(float));
-	if (outframe==NULL) {
+	if (outframe == NULL) {
 		puts("No memory!\n");
 		error++;
 		goto exit;
@@ -280,8 +253,174 @@ int main(int argc, char* argv[])
 		goto exit;
 	}
 
-	outprops.format = outformat;
-														                      
+	outprops.format = outformat;	
+
+	// open brkfiles if any
+	fpfreq = fopen(argv[ARG_FREQ], "r");
+	if (fpfreq == NULL) {
+		if (!isnum(argv[ARG_FREQ], &freq)) {
+			printf("Error: file %s does not exist\n", argv[ARG_FREQ]);
+			error++;
+			goto exit;
+		} else {
+			if (freq <= 0.0) {
+				printf("Error: freq must be positive\n");
+				error++;
+				goto exit;
+			}
+		}
+	} else {
+		freqstream = bps_newstream(fpfreq, outprops.srate, &brkfreqSize);
+		if (freqstream == NULL) {
+			printf("Error reading freq breakpoint file %s\n",argv[ARG_FREQ]);
+			error++;
+			goto exit;
+		}
+
+		if (bps_getminmax(freqstream, &freq_minval, &freq_maxval)) {
+			printf("Error reading range of breakpoint file %s\n", argv[ARG_FREQ]);
+			error++;
+			goto exit;
+		}
+
+		if (freq_minval <= 0.0 || freq_maxval <= 0.0) {
+			printf("Error: negative frequency values in breakpoint file %s\n", argv[ARG_FREQ]);
+			error++;
+			goto exit;
+		}
+
+		if (freq_minval >= outprops.srate/2 || freq_maxval >= outprops.srate / 2){
+			printf("Error: frequency values above %d in breakpoint file %s\n", outprops.srate/2, argv[ARG_FREQ]);
+			error++;
+			goto exit;
+		}
+	}
+
+	fpamp = fopen(argv[ARG_AMP], "r");
+
+	if (fpamp == NULL) {
+		if (!isnum(argv[ARG_AMP], &amp)) {
+			printf("Error: file %s does not exist\n", argv[ARG_AMP]);
+			error++;
+			goto exit;
+		} else {
+			if (amp <= 0.0 || amp > 1.0) {
+				printf("Error: amp value out of range: 0 < amp <= 1.0\n");
+				error++;
+				goto exit;
+			}
+		}
+	} else {
+		ampstream = bps_newstream(fpamp, outprops.srate, &brkampSize);
+		if (ampstream == NULL) {
+			printf("Error reading amp breakpoint file %s\n", argv[ARG_AMP]);
+			error++;
+			goto exit;
+		}
+
+		if (bps_getminmax(ampstream, &amp_minval, &amp_maxval)) {
+			printf("Error reading range of breakpoint file %s\n", argv[ARG_AMP]);
+			error++;
+			goto exit;
+		}
+		
+		if (amp_minval < 0.0 || amp_minval > 1.0  || amp_maxval < 0.0 || amp_maxval > 1.0) {
+			printf("Error: amplitude values out of range in breakpoint file %s\n", argv[ARG_AMP]);
+			error++;
+			goto exit;
+		}
+	}
+
+  // create amp freq arrays
+  oscamps = (double*) malloc(noscs * sizeof(double));
+
+  if (oscamps == NULL) {
+    puts("No memory!\n");
+    error++;
+    goto exit;
+  }
+
+  oscfreqs = (double*) malloc(noscs * sizeof(double));
+ 
+  if (oscfreqs == NULL) {
+    puts("no memory!\n");
+    error++;
+    goto exit;
+  }
+
+  // fill arrays for triangle wave
+	ampfac = 1.0;
+  freqfac = 1.0;
+  ampadjust = 0.0;
+	phase = 0.0; // default to sine phase
+
+	switch(wavetype) {
+		case(WAVE_SQUARE):
+			for (i = 0; i < noscs; i++) {
+				oscamps[i] = ampfac;
+				oscfreqs[i] = freqfac;
+				freqfac += 2.0;
+				ampadjust += ampfac;
+				ampfac = 1.0 /freqfac;
+			}
+			for (i = 0; i < noscs; i++)
+				oscamps[i] /= ampadjust;
+			break;
+		case(WAVE_TRIANGLE):
+			for (i = 0; i < noscs; i++) {
+				oscamps[i] = ampfac;
+				oscfreqs[i] = freqfac;
+				freqfac += 2.0;
+				ampadjust += ampfac;
+				ampfac = 1.0 / (freqfac * freqfac);
+			}
+			for (i = 0; i < noscs; i++)
+				oscamps[i] /= ampadjust;
+			phase = 0.25; // set cos phase for true triangle shape
+			break;	
+		case(WAVE_SAWUP):
+		case(WAVE_SAWDOWN):
+			for (i = 0; i < noscs; i++) {
+				oscamps[i] = ampfac;
+				oscfreqs[i] = freqfac;
+				freqfac += 1.0;
+				ampadjust += ampfac;
+				ampfac = 1.0 / (freqfac);
+			}
+			if (wavetype == WAVE_SAWUP) {
+				ampadjust = -ampadjust; // inverts waveform
+			}
+			for (i = 0; i < noscs; i++)
+				oscamps[i] /= ampadjust;
+			break;
+		case(WAVE_PULSE):
+			freqfac = 1.0;
+			ampfac = 1.0 / noscs;
+			ampadjust = 0.0;
+			for (i = 0; i< noscs; i++) {
+				oscamps[i] = ampfac;
+				oscfreqs[i] = freqfac;
+				freqfac += 1.0;
+			}
+			break;
+	}
+
+	oscs = (OSCIL**) malloc(noscs * sizeof(OSCIL *));
+	if (oscs == NULL) {
+		puts("no memory!\n");
+		error++;
+		goto exit;
+	}
+
+	for (i = 0; i < noscs; i++) {
+		oscs[i] = new_oscilp(outprops.srate, phase);
+		if (oscs[i] == NULL) {
+			puts("no memory for oscillators\n");
+			error++;
+			goto exit;
+		}
+	}
+										                      
 	// handle outfile
 	// TODO:  make any changes to outprops here
 
@@ -302,19 +441,24 @@ int main(int argc, char* argv[])
 	printf("processing....\n");
 
   // STAGE 5
+	starttime = clock();
+
 	for (i = 0; i < nbufs; i++) {
-		long j;
+		long j, k, l;
+		double val;
+
 		if (i == nbufs - 1) nframes = remainder;
 
 		for (j = 0; j < nframes; j++) {
-      long k;
 			if (freqstream) freq = bps_tick(freqstream);
 			if (ampstream) amp = bps_tick(ampstream);	
       val = 0.0;
-      for (k = 0; k < noscs; k++) {
-        val += oscamps[k] * sinetick(oscs[k], freq * oscfreqs[k]);
+      for (l = 0; l < noscs; l++) {
+        val += oscamps[l] * sinetick(oscs[l], freq * oscfreqs[l]);
       }	
-			outframe[j] = (float) (val * amp);
+			for (k = 0; k < outprops.chans; k++) {
+				outframe[j * outprops.chans + k] = (float)(val * amp);
+			}
 		}
 
 		if (psf_sndWriteFloatFrames(ofd, outframe, nframes) != nframes) {
@@ -324,6 +468,8 @@ int main(int argc, char* argv[])
 		}
 	}
 
+	endtime = clock();
+	printf("Elapsed time =  %f secs\n", (endtime-starttime) / (double) CLOCKS_PER_SEC);
 	printf("Done: %d errors\n",error);
 
 	// report PEAK values to user
@@ -351,27 +497,16 @@ int main(int argc, char* argv[])
 	if (peaks) free(peaks);
 
 	// TODO: cleanup any other resources
-	if (osc) free(osc);
+	if (oscs) {
+		for (i = 0; i < noscs; i++) {
+			free(oscs[i]);
+		}
 
-	if (fpfreq) {
-		if (fclose(fpfreq))
-			printf("Error closing breakpoint file %s\n", argv[ARG_FREQ]);
-  }
-
-	if (fpamp) {
-		if (fclose(fpamp))
-			printf("Error closing breakpoint file %s\n", argv[ARG_AMP]);
-  }
-
-	if (freqstream) {
-		bps_freepoints(freqstream);
-		free(freqstream);
+		free(oscs);
 	}
 
-	if (ampstream) {
-		bps_freepoints(ampstream);
-		free(ampstream);
-	}
+	if(oscamps) free(oscamps);
+	if(oscfreqs) free(oscfreqs);
 
 	psf_finish();
 	return error;

@@ -60,7 +60,7 @@ double sawutick  (OSCIL* p_osc, double freq);
 double trunctick (OSCIL* p_osc, double freq);
 double tritick   (OSCIL* p_osc, double freq);
 /* function pointer for tick funcs */
-typedef double (*tickfunc)(OSCIL* osc,double);
+typedef double (*tickfunc)(OSCIL* osc, double);
 
 #ifdef __cplusplus
 }	
