@@ -7,6 +7,7 @@ expbrk
 expad
 iscale
 midi2freq
+oscgen
 siggen
 sf2float
 sfenv
