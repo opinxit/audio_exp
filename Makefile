@@ -53,6 +53,9 @@ sfnorm: sfnorm.c $(PORTSF)
 sfpan: sfpan.c  breakpoints.c $(PORTSF)
 	$(CC) -o sfpan sfpan.c breakpoints.c $(INCLUDES) $(LIBS)
 
+tabgen: tabgen.c gtable.c breakpoints.c $(PORTSF)
+	$(CC)  -o tabgen tabgen.c gtable.c breakpoints.c $(INCLUDES) $(LIBS)
+
 tforkraw: tforkraw.c
 	${CC} ${LIBS} tforkraw.c -o tforkraw
 
